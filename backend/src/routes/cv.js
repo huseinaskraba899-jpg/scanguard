@@ -1,5 +1,6 @@
 const { Router } = require("express");
 const apiKeyAuth = require("../middleware/apiKeyAuth");
+const authenticateToken = require("../middleware/jwtAuth");
 const {
     postDetection,
     postAlert,
@@ -15,8 +16,8 @@ router.post("/detections", apiKeyAuth, postDetection);
 router.post("/alerts", apiKeyAuth, postAlert);
 router.post("/heartbeat", apiKeyAuth, postHeartbeat);
 
-// Dashboard endpoints (JWT auth would go here in production)
-router.get("/alerts", getAlerts);
-router.patch("/alerts/:id", updateAlert);
+// Dashboard endpoints (JWT auth)
+router.get("/alerts", authenticateToken, getAlerts);
+router.patch("/alerts/:id", authenticateToken, updateAlert);
 
 module.exports = router;

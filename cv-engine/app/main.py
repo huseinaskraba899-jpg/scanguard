@@ -63,6 +63,10 @@ app.add_middleware(
 
 # ----- Health & Status -----
 
+@app.get("/")
+async def root():
+    return {"message": "ScanGuard CV Engine is running! 🚀", "docs": "/docs"}
+
 @app.get("/health", response_model=HealthResponse)
 async def health():
     active = sum(

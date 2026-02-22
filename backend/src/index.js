@@ -8,6 +8,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 
 const cvRoutes = require("./routes/cv");
+const authRoutes = require("./routes/auth");
 const pool = require("./db");
 
 const PORT = process.env.PORT || 3000;
@@ -24,11 +25,20 @@ app.set("io", io);
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+const corsMiddleware = require("cors")({
+  origin: "*", // Allow all origins for the dashboard
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+});
+app.use(corsMiddleware);
 app.use(morgan("short"));
 app.use(express.json({ limit: "10mb" })); // snapshots can be large
 
 // Routes
+app.get("/", (req, res) => {
+  res.send("<h1>ScanGuard Backend is running! 🚀</h1><p>Visit <code>/health</code> for API status.</p>");
+});
+app.use("/api/auth", authRoutes);
 app.use("/api/cv", cvRoutes);
 
 // Health check

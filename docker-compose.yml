@@ -36,6 +36,17 @@ services:
     networks:
       - scanguard
 
+  frontend:
+    build: ./frontend
+    container_name: scanguard-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - scanguard
+
   cv-engine:
     build: ./cv-engine
     container_name: scanguard-cv-engine

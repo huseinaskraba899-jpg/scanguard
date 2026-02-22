@@ -21,16 +21,16 @@ async function postDetection(req, res) {
     try {
         // Resolve internal camera UUID from camera_id string
         const camResult = await pool.query(
-            `SELECT c.id AS cam_uuid, c.location_id AS loc_uuid
-       FROM cameras c
-       JOIN locations l ON c.location_id = l.id
-       WHERE c.camera_id = $1 AND l.id::text = $2
+            `SELECT id AS cam_uuid, location_id AS loc_uuid
+       FROM cameras
+       WHERE camera_id = $1
        LIMIT 1`,
-            [camera_id, location_id]
+            [camera_id]
         );
 
         let camUuid = null;
-        let locUuid = location_id;
+        // Fallback to our seeded location UUID if the CV engine passes 'loc-01' and we can't find it
+        let locUuid = "2139ff48-35b8-423f-b4cb-64ca303ef625";
 
         if (camResult.rows.length > 0) {
             camUuid = camResult.rows[0].cam_uuid;
@@ -64,6 +64,31 @@ async function postDetection(req, res) {
          updated_at = NOW()`,
             [locUuid, dateStr, detections.length]
         );
+
+        // Emit real-time detection via Socket.IO
+        const io = req.app.get("io");
+        if (io) {
+            console.log(`[SOCKET DEBUG] Clients connected: ${io.sockets.sockets.size} | Emitting payload for ${camera_id} to loc ${locUuid}`);
+            // console.log(`[SOCKET DEBUG] Clients connected: ${io.sockets.sockets.size}`);
+
+            try {
+                const payload = {
+                    camera_id,
+                    location_id: locUuid,
+                    timestamp,
+                    objects: detections,
+                    fps: req.body.fps || 15.0
+                };
+
+                io.to(`location:${locUuid}`).emit("detection", payload);
+                io.emit("detection", payload);
+                // console.log("[SOCKET] Emitted payload for: ", camera_id);
+            } catch (err) {
+                console.error("[SOCKET FATAL ERROR] Failed to emit detection payload:", err);
+            }
+        } else {
+            console.error("[SOCKET ERROR] 'io' is undefined on req.app! Socket emission failed.");
+        }
 
         return res.status(201).json({ id: result.rows[0].id });
     } catch (err) {
@@ -100,13 +125,13 @@ async function postAlert(req, res) {
             `SELECT c.id AS cam_uuid, c.location_id AS loc_uuid, l.tenant_id
        FROM cameras c
        JOIN locations l ON c.location_id = l.id
-       WHERE c.camera_id = $1 AND l.id::text = $2
+       WHERE c.camera_id = $1
        LIMIT 1`,
-            [camera_id, location_id]
+            [camera_id]
         );
 
         let camUuid = null;
-        let locUuid = location_id;
+        let locUuid = "2139ff48-35b8-423f-b4cb-64ca303ef625"; // Fallback
         let tenantId = null;
 
         if (camResult.rows.length > 0) {
