@@ -217,26 +217,38 @@ function CameraFeed({ id, name, status, detection }) {
             {/* Live AI Overlay - Fake Stream Background + Bounding Boxes */}
             {isLive && (
                 <div className="absolute inset-0 w-full h-full bg-[#0m0m1a]">
-                    {/* Simulated Video Feed Noise/Background */}
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-black to-black"></div>
+                    {/* Actual Camera Feed */}
+                    {id === "iphone-wifi" ? (
+                        <img
+                            src="http://localhost:8080/video"
+                            alt="Live Camera Feed"
+                            crossOrigin="anonymous"
+                            className="absolute inset-0 w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-black to-black"></div>
+                    )}
 
                     {/* Render Bounding Boxes */}
                     {detection?.objects?.map((obj, idx) => {
-                        // Coordinates: [x1, y1, x2, y2] normalized between 0 and 1 (from CV engine)
-                        // Or if absolute pixels, we'd need to convert. Assuming our CV engine sends relative coords for now,
-                        // or we just render them roughly if they are absolute. Let's assume the backend scales them to percentages
-                        // or we do safe CSS calcs.
-                        // Wait, looking at the YOLO logic, it usually returns raw pixels. 
-                        // For a mock/demo without a real image underneath, we'll draw it scaled to the div.
-
-                        // We will use standard center/width percentages if provided, otherwise absolute pixels.
-                        // Assuming YOLO raw absolute coords: (x1, y1) to (x2, y2)
-                        // If we don't know the exact frame width, we'll just show the labels in a list for now
-                        // since we don't have the explicit frame width/height in the socket payload.
+                        // Coordinates: [x1, y1, x2, y2] in pixels from CV engine. Assuming 1920x1080 resolution for the iPhone stream.
+                        let style = { inset: 0 }; // Fallback to full screen if no bbox passed
+                        if (obj.bbox) {
+                            const x1 = (obj.bbox[0] / 1920) * 100;
+                            const y1 = (obj.bbox[1] / 1080) * 100;
+                            const x2 = (obj.bbox[2] / 1920) * 100;
+                            const y2 = (obj.bbox[3] / 1080) * 100;
+                            style = {
+                                left: `${x1}%`,
+                                top: `${y1}%`,
+                                width: `${x2 - x1}%`,
+                                height: `${y2 - y1}%`
+                            };
+                        }
 
                         return (
-                            <div key={idx} className="absolute inset-0 flex items-center justify-center p-4 m-2 border-2 border-emerald-500/50 rounded pointer-events-none">
-                                <div className="absolute top-0 left-0 bg-emerald-500 text-black text-[10px] font-bold px-1 rounded-br">
+                            <div key={idx} style={style} className="absolute border-2 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] bg-emerald-500/10 pointer-events-none">
+                                <div className="absolute top-0 left-0 bg-emerald-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-br w-max shadow-md">
                                     {obj.class_name} {Math.round(obj.confidence * 100)}%
                                 </div>
                             </div>
