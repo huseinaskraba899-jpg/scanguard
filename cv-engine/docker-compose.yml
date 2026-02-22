@@ -1,0 +1,29 @@
+# Standalone compose for CV engine only.
+# For the full stack (postgres + backend + cv-engine), use ../docker-compose.yml
+services:
+  cv-engine:
+    build: .
+    container_name: scanguard-cv-engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - CV_BACKEND_URL=http://backend:3000
+      - CV_API_KEY=${SCANGUARD_API_KEY:-changeme}
+      - CV_MODEL_PATH=/models/yolov8n.pt
+      - CV_DEVICE=cpu
+      - CV_CONFIDENCE_THRESHOLD=0.45
+      - CV_FRAME_SKIP=3
+      - CV_LOG_LEVEL=INFO
+    volumes:
+      - models:/models
+    networks:
+      - scanguard
+
+volumes:
+  models:
+
+
+networks:
+  scanguard:
+    external: true

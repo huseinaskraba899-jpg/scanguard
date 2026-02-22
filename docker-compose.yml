@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: scanguard-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: scanguard
+      POSTGRES_PASSWORD: scanguard
+      POSTGRES_DB: scanguard
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - scanguard
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U scanguard" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: scanguard-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://scanguard:scanguard@postgres:5432/scanguard
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - CV_API_KEYS=${SCANGUARD_API_KEY:-changeme}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - scanguard
+
+  cv-engine:
+    build: ./cv-engine
+    container_name: scanguard-cv-engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - CV_BACKEND_URL=http://backend:3000
+      - CV_API_KEY=${SCANGUARD_API_KEY:-changeme}
+      - CV_MODEL_PATH=/models/yolov8n.pt
+      - CV_DEVICE=cpu
+      - CV_CONFIDENCE_THRESHOLD=0.45
+      - CV_FRAME_SKIP=3
+      - CV_LOG_LEVEL=INFO
+    volumes:
+      - models:/models
+    depends_on:
+      - backend
+    networks:
+      - scanguard
+    # GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  pgdata:
+  models:
+
+
+networks:
+  scanguard:
+    driver: bridge
